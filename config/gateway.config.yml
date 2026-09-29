@@ -20,7 +20,8 @@
 #   # see: https://www.express-gateway.io/docs/configuration/gateway.config.yml/pipelines
 
 http:
-  port: 8080
+  # port: 8080
+  port: https://express-gateway-jade.vercel.app
 admin:
   port: 9876
   host: localhost
