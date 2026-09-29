@@ -1,0 +1,81 @@
+# http:
+#   port: 8080
+# admin:
+#   port: 9876
+#   host: localhost
+# apiEndpoints:
+#   # see: http://www.express-gateway.io/docs/configuration/gateway.config.yml/apiEndpoints
+# serviceEndpoints:
+#   # see: http://www.express-gateway.io/docs/configuration/gateway.config.yml/serviceEndpoints
+# policies:
+#   - basic-auth
+#   - cors
+#   - expression
+#   - key-auth
+#   - log
+#   - oauth2
+#   - proxy
+#   - rate-limit
+# pipelines:
+#   # see: https://www.express-gateway.io/docs/configuration/gateway.config.yml/pipelines
+
+http:
+  port: 8080
+admin:
+  port: 9876
+  host: localhost
+
+apiEndpoints:
+  service1_api:
+    host: '*' # <-- REQUIRED FIELD ADDED
+    paths:    # <-- FIXED KEY (plural 'paths') & FIXED MATCHING PATTERN
+      - '/service1'
+      - '/service1/*'
+  service2_api:
+    host: '*' 
+    paths:    
+      - '/service2'
+      - '/service2/*'
+
+serviceEndpoints:
+  service1_backend:
+    url: 'http://localhost:3001/'
+  service2_backend:
+    url: 'http://localhost:3002/'
+
+policies:
+  - basic-auth
+  - cors
+  - expression
+  - key-auth
+  - log
+  - oauth2
+  - proxy
+  - rate-limit
+
+pipelines:
+  service1_pipeline:
+    apiEndpoints:
+      - service1_api
+    policies:
+          # Use the built-in expression policy to strip out /service1
+      - expression:
+          - action:
+              jscode: 'req.url = req.url.replace(/^\/service1/, "") || "/";'
+      - proxy:
+          - action:
+              serviceEndpoint: service1_backend
+              changeOrigin: true
+
+  service2_pipeline:
+    apiEndpoints:
+      - service2_api
+    policies:
+      # Use the built-in expression policy to strip out /service2
+      - expression:
+          - action:
+              jscode: 'req.url = req.url.replace(/^\/service2/, "") || "/";'
+      - proxy:
+          - action:
+              serviceEndpoint: service2_backend
+              changeOrigin: true
