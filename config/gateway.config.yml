@@ -21,7 +21,7 @@
 
 http:
   # port: 8080
-  port: https://express-gateway-jade.vercel.app
+  port: 8080
 admin:
   port: 9876
   host: localhost
