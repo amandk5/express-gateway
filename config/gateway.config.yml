@@ -39,9 +39,9 @@ apiEndpoints:
 
 serviceEndpoints:
   service1_backend:
-    url: 'http://localhost:3001/'
+    url: 'https://microservice1.vercel.app'
   service2_backend:
-    url: 'http://localhost:3002/'
+    url: 'https://microservice2.vercel.app'
 
 policies:
   - basic-auth
