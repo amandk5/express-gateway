@@ -76,7 +76,24 @@ pipelines:
             credentials: true
       - expression:
           - action:
-              jscode: 'req.url = req.url.replace(/^\/auth/, "") || "/";'
+              jscode: |
+                req.url = req.url.replace(/^\/auth/, "") || "/";
+                const _setHeader = res.setHeader;
+                res.setHeader = function(name, value) {
+                  if (name.toLowerCase() === 'set-cookie') {
+                    let cookies = value;
+                    if (!Array.isArray(cookies)) cookies = [cookies];
+                    cookies = cookies.map(c => {
+                      if (!c) return c;
+                      let newCookie = c.replace(/SameSite=Lax/i, 'SameSite=None').replace(/Secure=false/i, 'Secure');
+                      if (!/SameSite=None/i.test(newCookie)) newCookie += '; SameSite=None';
+                      if (!/Secure/i.test(newCookie)) newCookie += '; Secure';
+                      return newCookie;
+                    });
+                    return _setHeader.call(this, name, cookies);
+                  }
+                  return _setHeader.apply(this, arguments);
+                };
       - proxy:
           - action:
               serviceEndpoint: user_backend
