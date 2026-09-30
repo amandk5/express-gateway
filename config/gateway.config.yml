@@ -27,6 +27,11 @@ admin:
   host: localhost
 
 apiEndpoints:
+  user_api:
+    host: '*'
+    paths:
+      - '/auth'
+      - '/auth/*'
   service1_api:
     host: '*' # <-- REQUIRED FIELD ADDED
     paths:    # <-- FIXED KEY (plural 'paths') & FIXED MATCHING PATTERN
@@ -39,6 +44,8 @@ apiEndpoints:
       - '/service2/*'
 
 serviceEndpoints:
+  user_backend:
+    url: 'https://user-service-orpin.vercel.app'
   service1_backend:
     url: 'https://microservice1.vercel.app'
   service2_backend:
@@ -53,12 +60,53 @@ policies:
   - oauth2
   - proxy
   - rate-limit
+  - jwt
 
 pipelines:
+  # 1. Public Auth Pipeline (No authentication check)
+  user_pipeline:
+    apiEndpoints:
+      - user_api
+    policies:
+      - cors: # <-- Added CORS at the very top
+        - action:
+            origin: true # Dynamically matches the requesting origin
+            methods: 'GET,POST,PUT,DELETE,OPTIONS'
+            allowedHeaders: 'Content-Type,Authorization'
+            credentials: true
+      - expression:
+          - action:
+              jscode: 'req.url = req.url.replace(/^\/auth/, "") || "/";'
+      - proxy:
+          - action:
+              serviceEndpoint: user_backend
+              changeOrigin: true
+
   service1_pipeline:
     apiEndpoints:
       - service1_api
     policies:
+      - cors: # <-- Added CORS at the very top
+        - action:
+            origin: true # Dynamically matches the requesting origin
+            methods: 'GET,POST,PUT,DELETE,OPTIONS'
+            allowedHeaders: 'Content-Type,Authorization'
+            credentials: true
+      # EXTRACT COOKIE AND MAP TO AUTHORIZATION HEADER
+      - expression:
+          - action:
+              jscode: |
+                if (req.headers.cookie) {
+                  const match = req.headers.cookie.match(/(?:^|; )\s*token=([^;]+)/);
+                  if (match && match[1]) {
+                    req.headers.authorization = 'Bearer ' + match[1];
+                  }
+                }
+      # VALIDATE EXTRACTED JWT    
+      - jwt:        # <-- Gatekeeper: Blocks request if JWT is missing/invalid
+          - action:
+              secretOrPublicKey: 'userservice_test_key_123' 
+              checkCredentialExistence: false # Bypasses Express Gateway's internal consumer database    
           # Use the built-in expression policy to strip out /service1
       - expression:
           - action:
@@ -72,6 +120,27 @@ pipelines:
     apiEndpoints:
       - service2_api
     policies:
+      - cors: # <-- Added CORS at the very top
+        - action:
+            origin: true # Dynamically matches the requesting origin
+            methods: 'GET,POST,PUT,DELETE,OPTIONS'
+            allowedHeaders: 'Content-Type,Authorization'
+            credentials: true
+      # EXTRACT COOKIE AND MAP TO AUTHORIZATION HEADER
+      - expression:
+          - action:
+              jscode: |
+                if (req.headers.cookie) {
+                  const match = req.headers.cookie.match(/(?:^|; )\s*token=([^;]+)/);
+                  if (match && match[1]) {
+                    req.headers.authorization = 'Bearer ' + match[1];
+                  }
+                }
+      # VALIDATE EXTRACTED JWT    
+      - jwt:        # <-- Gatekeeper: Blocks request if JWT is missing/invalid
+          - action:
+              secretOrPublicKey: 'userservice_test_key_123' 
+              checkCredentialExistence: false # Bypasses Express Gateway's internal consumer database    
       # Use the built-in expression policy to strip out /service2
       - expression:
           - action:
